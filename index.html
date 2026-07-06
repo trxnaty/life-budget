@@ -242,8 +242,26 @@ header{
 .row:hover .rec{opacity:.6}
 .row .rec:hover{opacity:1;color:var(--gold-bright)}
 .row .rec.on{opacity:1;color:var(--gold)}
-.namewrap{display:flex;align-items:center;gap:8px;min-width:0}
+.namewrap{display:flex;align-items:center;gap:6px;min-width:0}
 .namewrap .name-in{flex:1}
+.row .grip{
+  flex:none;width:20px;height:24px;margin-left:-6px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:11px;line-height:1;letter-spacing:-1px;
+  cursor:grab;opacity:0;transition:opacity .2s,color .2s;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+.row:hover .grip{opacity:.45}
+.row .grip:hover,.row .grip:focus-visible{opacity:.95;color:var(--ink2)}
+@media (hover:none){.row .grip{opacity:.4;width:26px}}
+.row.drag-active{
+  position:relative;z-index:6;background:linear-gradient(160deg,#1b3d32,var(--card2));
+  box-shadow:0 12px 34px rgba(0,0,0,.5), 0 0 0 1px var(--gold-dim);
+  border-radius:10px;border-bottom-color:transparent;
+}
+.row.drag-active .grip{cursor:grabbing;opacity:.95;color:var(--gold-bright)}
+body.dragging-row{user-select:none;-webkit-user-select:none}
+body.dragging-row,body.dragging-row *{cursor:grabbing!important}
 .logbadge{
   font-family:var(--font-mono);font-size:9.5px;color:var(--gold);flex:none;
   border:1px solid var(--gold-dim);border-radius:99px;padding:1px 7px;line-height:1.5;
@@ -962,6 +980,7 @@ function buildRow(s, r){
   el.dataset.id = r.id;
   el.innerHTML = `
     <div class="namewrap">
+      <button class="grip" title="Drag to reorder (or focus and use arrow keys)" aria-label="Reorder line">⠿</button>
       <input class="name-in" value="" aria-label="Category name">
     </div>
     <input class="amt plan" inputmode="decimal" value="" aria-label="Planned amount">
@@ -1011,8 +1030,148 @@ function buildRow(s, r){
     save();
   });
   ensureBadge(el, r);
+  attachDrag(el, s);
   updateRowComputed(el, s, r);
   return el;
+}
+
+/* ================= drag to reorder ================= */
+// A "unit" is a row plus its expanded history list, so they always travel together.
+function unitBefore(el){
+  const p = el.previousElementSibling;
+  if(!p) return null;
+  if(p.classList.contains("logrows")) return [p.previousElementSibling, p];
+  return p.classList.contains("row") ? [p] : null;
+}
+function unitAfter(el){
+  let n = el.nextElementSibling;
+  if(n && n.classList.contains("logrows")) n = n.nextElementSibling; // skip own history
+  if(!n || !n.classList.contains("row")) return null;
+  const nn = n.nextElementSibling;
+  return (nn && nn.classList.contains("logrows")) ? [n, nn] : [n];
+}
+function flipMove(elements, mutate){
+  const before = new Map(elements.map(el => [el, el.getBoundingClientRect().top]));
+  mutate();
+  elements.forEach(el => {
+    const d = before.get(el) - el.getBoundingClientRect().top;
+    if(Math.abs(d) < 0.5) return;
+    el.style.transition = "none";
+    el.style.transform = `translateY(${d}px)`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transition = "transform .2s var(--ease)";
+      el.style.transform = "";
+      setTimeout(() => { el.style.transition = ""; }, 250);
+    }));
+  });
+}
+function persistOrder(rowsEl, s){
+  const m = DB.months[CUR];
+  const order = [...rowsEl.querySelectorAll(":scope > .row")].map(el => el.dataset.id);
+  m[s.key].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  save();
+}
+var dragState = null;
+function attachDrag(row, s){
+  const grip = row.querySelector(".grip");
+  grip.addEventListener("pointerdown", e => beginDrag(e, row, s));
+  grip.addEventListener("keydown", e => {
+    if(e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const rowsEl = row.closest(".rows");
+    const own = [row];
+    const nx = row.nextElementSibling;
+    if(nx && nx.classList.contains("logrows")) own.push(nx);
+    const target = e.key === "ArrowUp" ? unitBefore(row) : unitAfter(row);
+    if(!target) return;
+    flipMove([...own, ...target], () => {
+      if(e.key === "ArrowUp") own.forEach(el => rowsEl.insertBefore(el, target[0]));
+      else target.forEach(el => rowsEl.insertBefore(el, own[0]));
+    });
+    persistOrder(rowsEl, s);
+    grip.focus();
+  });
+}
+function beginDrag(e, row, s){
+  if(dragState || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  const rowsEl = row.closest(".rows");
+  const open = row.nextElementSibling; // collapse own history so the row travels as one element
+  if(open && open.classList.contains("logrows")){ open.remove(); expandedLogs.delete(row.dataset.id); }
+  const grip = e.currentTarget;
+  try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+  const opPageTop = () => row.offsetParent.getBoundingClientRect().top + window.scrollY;
+  dragState = {
+    row, s, rowsEl, grip, opPageTop,
+    startPageY: e.pageY, lastPageY: e.pageY, lastClientY: e.clientY,
+    startNatTop: opPageTop() + row.offsetTop,
+  };
+  row.classList.add("drag-active");
+  document.body.classList.add("dragging-row");
+  grip.addEventListener("pointermove", onDragMove);
+  grip.addEventListener("pointerup", endDrag);
+  grip.addEventListener("pointercancel", endDrag);
+  if(!reducedMotion) requestAnimationFrame(autoScrollTick);
+}
+function onDragMove(e){
+  if(!dragState) return;
+  dragState.lastPageY = e.pageY;
+  dragState.lastClientY = e.clientY;
+  dragUpdate();
+}
+function dragUpdate(){
+  const d = dragState;
+  if(!d) return;
+  // cross a neighbor's midpoint (natural offsetTop coords — immune to transforms) → swap
+  let guard = 0;
+  while(guard++ < 24){
+    const base = d.opPageTop();
+    const prev = unitBefore(d.row);
+    const next = unitAfter(d.row);
+    if(prev && d.lastPageY < base + prev[0].offsetTop + (prev.reduce((h,el)=>h+el.offsetHeight,0))/2){
+      flipMove(prev, () => d.rowsEl.insertBefore(d.row, prev[0]));
+      continue;
+    }
+    if(next && d.lastPageY > base + next[0].offsetTop + (next.reduce((h,el)=>h+el.offsetHeight,0))/2){
+      flipMove(next, () => {
+        const after = next[next.length-1].nextElementSibling;
+        d.rowsEl.insertBefore(d.row, after);
+      });
+      continue;
+    }
+    break;
+  }
+  const natTop = d.opPageTop() + d.row.offsetTop;
+  d.row.style.transform = `translateY(${(d.lastPageY - d.startPageY) + (d.startNatTop - natTop)}px)`;
+}
+function autoScrollTick(){
+  const d = dragState;
+  if(!d) return;
+  const y = d.lastClientY;
+  const step = y < 90 ? -9 : y > innerHeight - 90 ? 9 : 0;
+  if(step){
+    window.scrollBy(0, step);
+    d.lastPageY = d.lastClientY + window.scrollY;
+    dragUpdate();
+  }
+  requestAnimationFrame(autoScrollTick);
+}
+function endDrag(){
+  const d = dragState;
+  if(!d) return;
+  dragState = null;
+  d.grip.removeEventListener("pointermove", onDragMove);
+  d.grip.removeEventListener("pointerup", endDrag);
+  d.grip.removeEventListener("pointercancel", endDrag);
+  d.row.style.transition = "transform .22s var(--ease), box-shadow .22s";
+  d.row.style.transform = "translateY(0)";
+  setTimeout(() => {
+    d.row.classList.remove("drag-active");
+    d.row.style.transition = "";
+    d.row.style.transform = "";
+  }, 240);
+  document.body.classList.remove("dragging-row");
+  persistOrder(d.rowsEl, d.s);
 }
 
 const expandedLogs = new Set();
