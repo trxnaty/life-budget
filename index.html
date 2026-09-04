@@ -186,14 +186,14 @@ header{
 }
 .sec-head .totals b{color:var(--ink);font-weight:600}
 .colhead,.row{
-  display:grid;grid-template-columns:minmax(120px,1.35fr) 92px 92px minmax(70px,1fr) 84px 46px;
+  display:grid;grid-template-columns:minmax(120px,1.35fr) 110px minmax(70px,1fr) 64px 46px;
   gap:12px;align-items:center;
 }
 .colhead{
   padding:10px 0 6px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
   color:var(--muted);
 }
-.colhead span:nth-child(2),.colhead span:nth-child(3),.colhead span:nth-child(5){text-align:right}
+.colhead span:nth-child(2),.colhead span:nth-child(4){text-align:right}
 .row{padding:7px 0;border-bottom:1px solid var(--line);transition:background .2s}
 .row:hover{background:rgba(240,235,221,.025)}
 .row:last-of-type{border-bottom:none}
@@ -205,9 +205,8 @@ header{
 .row .amt{
   font-family:var(--font-mono);font-size:13px;text-align:right;
   font-variant-numeric:tabular-nums;border-radius:4px;padding:3px 6px;width:100%;
-  border:1px solid transparent;transition:border-color .2s,background .2s;color:var(--ink);
+  border:1px solid transparent;transition:border-color .2s,background .2s;color:var(--gold-bright);
 }
-.row .amt.actual{color:var(--gold-bright)}
 .row .amt::placeholder{color:var(--muted);opacity:.65}
 .row .name-in:hover,.row .amt:hover{border-color:var(--line2)}
 .row .name-in:focus,.row .amt:focus{border-color:var(--gold);background:var(--well);outline:none}
@@ -222,12 +221,10 @@ header{
   position:absolute;inset:0 auto 0 0;width:0;border-radius:3px;
   transition:width .9s var(--ease),background-color .4s;
 }
-.bar .fill.over{background-color:var(--bad)!important}
-.row .diff{
+.row .share{
   font-family:var(--font-mono);font-size:12px;text-align:right;
   font-variant-numeric:tabular-nums;color:var(--muted);
 }
-.row .diff.good{color:var(--good)} .row .diff.bad{color:var(--bad)}
 .row .acts{display:flex;align-items:center;justify-content:flex-end;gap:1px}
 .row .del{
   color:var(--muted);font-size:15px;line-height:1;opacity:0;transition:all .2s;
@@ -235,13 +232,6 @@ header{
 }
 .row:hover .del{opacity:.7}
 .row .del:hover{color:var(--bad);opacity:1}
-.row .rec{
-  color:var(--muted);font-size:13px;line-height:1;opacity:0;transition:all .2s;
-  border-radius:4px;height:20px;width:20px;
-}
-.row:hover .rec{opacity:.6}
-.row .rec:hover{opacity:1;color:var(--gold-bright)}
-.row .rec.on{opacity:1;color:var(--gold)}
 .namewrap{display:flex;align-items:center;gap:6px;min-width:0}
 .namewrap .name-in{flex:1}
 .row .grip{
@@ -567,12 +557,12 @@ footer{
 @media (max-width:560px){
   .wrap{padding:14px 10px 40px}
   .card{padding:16px 14px}
-  .colhead,.row{grid-template-columns:minmax(78px,1.2fr) 64px 64px 46px 42px;gap:8px}
-  .colhead span:nth-child(4){display:none}
+  .colhead,.row{grid-template-columns:minmax(78px,1.2fr) 78px 52px 42px;gap:8px}
+  .colhead span:nth-child(3){display:none}
   .row .bar{display:none}
   .row .name-in{font-size:12.5px}
   .row .amt{font-size:12px;padding:3px 3px}
-  .row .diff{font-size:11px}
+  .row .share{font-size:11px}
   .sec-head{flex-wrap:wrap}
   .month-nav h2{min-width:150px;font-size:21px}
   .serial .series-txt{display:none}
@@ -653,7 +643,7 @@ footer{
 
       <div class="col">
         <section class="card reveal" style="animation-delay:.22s">
-          <h3>Where it goes <span class="tag" id="mixTag">actual</span></h3>
+          <h3>Where it goes <span class="tag" id="mixTag">this month</span></h3>
           <div class="donut-wrap">
             <svg class="donut-svg" id="donutSvg" viewBox="0 0 190 190" role="img" aria-label="Spending mix donut chart"></svg>
             <div class="legend" id="donutLegend"></div>
@@ -667,7 +657,6 @@ footer{
           <div class="trend-legend">
             <span class="li"><span class="chip" style="background:var(--leftover)"></span>positive net</span>
             <span class="li"><span class="chip" style="background:var(--bad)"></span>negative net</span>
-            <span class="li"><span class="chip" style="border:1px dashed var(--muted);background:none"></span>plan only</span>
           </div>
         </section>
 
@@ -676,7 +665,7 @@ footer{
           <div class="util-row">
             <button class="btn" id="exportBtn">Export backup</button>
             <button class="btn" id="importBtn">Import backup</button>
-            <button class="btn danger" id="resetBtn">Clear this month's actuals</button>
+            <button class="btn danger" id="resetBtn">Zero this month's amounts</button>
           </div>
           <input type="file" id="importFile" accept=".json,application/json" hidden>
           <div class="util-row" id="importChoice" hidden>
@@ -748,10 +737,9 @@ footer{
     <div class="k">Field guide</div>
     <h2>How to use this ledger</h2>
     <ol>
-      <li><b>Set the plan.</b> Click any number in the <b>Plan</b> column to edit it. Click a category name to rename it, or add lines with <i>+ Add line</i>.</li>
-      <li><b>Log reality.</b> As the month unfolds, fill the gold <b>Actual</b> column. Everything above — the net figure, the mix, the bars — recalculates instantly.</li>
-      <li><b>Read the bars.</b> Each bar shows actual against plan. It turns red the moment a category runs over.</li>
-      <li><b>Turn the page.</b> Use ‹ › to move between months. A new month inherits your latest plan with a blank Actual column. The yearly chart fills in as months are logged.</li>
+      <li><b>Set the amounts.</b> Click any number in the gold <b>Amount</b> column to edit it. Click a category name to rename it, or add lines with <i>+ Add line</i>. Everything above — the net figure, the mix, the chart — recalculates instantly.</li>
+      <li><b>Read the bars.</b> Each bar is that line's share of its own section, so a glance tells you what dominates your fixed costs, your spending, or your savings.</li>
+      <li><b>Turn the page.</b> Use ‹ › to move between months. A new month inherits the previous month's amounts, ready to adjust. The yearly chart fills in as months take shape.</li>
       <li><b>Chase the tick.</b> The savings-rate meter carries a mark at 20% — the classic healthy target. Cross it and the meter lets you know.</li>
       <li><b>Sleep easy.</b> Data lives only in this browser. Use <i>Export backup</i> for a portable copy.</li>
     </ol>
@@ -786,11 +774,13 @@ const SECTIONS = [
 ];
 let uid = 1;
 const rid = () => "r" + (uid++) + "_" + Math.random().toString(36).slice(2,7);
-const R = (name,b,a=null) => ({id:rid(), name, b, a});
+// `b` holds THE amount for one line in one month. The name is historical: it was once
+// the "budget" half of a budget/actual pair, and the two columns collapsed into this one.
+const R = (name,b) => ({id:rid(), name, b});
 
 function seedData(){
   const june = {
-    income:[ R("Primary Salary (after tax)",4880,4880), R("Side Income / Freelance",0), R("Investment Income",0), R("Other",0) ],
+    income:[ R("Primary Salary (after tax)",4880), R("Side Income / Freelance",0), R("Investment Income",0), R("Other",0) ],
     fixed:[ R("Rent / Mortgage",1700), R("Utilities (elec/gas/water)",150), R("Internet & Phone",0), R("Insurance (health/auto)",0), R("Subscriptions (streaming, gym)",0), R("Loan / Debt Payments",0) ],
     variable:[ R("Groceries",300), R("Dining Out & Coffee",500), R("Transportation / Gas",0), R("Rideshare / Transit",0), R("Entertainment",500), R("Shopping & Clothing",500), R("Personal Care",0), R("Health & Wellness",0), R("Gifts & Donations",0), R("Miscellaneous",0) ],
     savings:[ R("Emergency Fund",1000), R("Retirement (401k/IRA)",0), R("Investments (brokerage)",0), R("Travel Fund",230), R("Big Purchase Fund",0), R("Other Goal",0) ],
@@ -827,12 +817,12 @@ function monthName(key, short=false){
 function cloneStructure(src){
   const out = {};
   for(const s of SECTIONS) out[s.key] = (src[s.key]||[]).map(r =>
-    ({id:rid(), name:r.name, b:r.b, a: r.rec ? r.b : null, rec: !!r.rec}));
+    ({id:rid(), name:r.name, b:r.b}));
   return out;
 }
 function ensureMonth(key){
   if(DB.months[key]) return DB.months[key];
-  // inherit plan from the nearest earlier month; else nearest later; else seed
+  // inherit amounts from the nearest earlier month; else nearest later; else seed
   const keys = Object.keys(DB.months).sort();
   const earlier = keys.filter(k => k < key).pop();
   const later = keys.find(k => k > key);
@@ -848,15 +838,11 @@ ensureMonth(CUR);
 const sum = (rows, f) => rows.reduce((t,r)=> t + (Number(r[f])||0), 0);
 function totals(m){
   const t = {};
-  for(const s of SECTIONS){
-    t[s.key] = { b: sum(m[s.key],"b"), a: sum(m[s.key],"a") };
-  }
-  t.spent   = { b: t.fixed.b + t.variable.b, a: t.fixed.a + t.variable.a };
-  t.netB = t.income.b - t.spent.b - t.savings.b;
-  t.netA = t.income.a - t.spent.a - t.savings.a;
-  t.hasActuals = SECTIONS.some(s => m[s.key].some(r => r.a !== null && r.a !== undefined && r.a !== 0));
-  t.rate  = t.income.a > 0 ? t.savings.a / t.income.a : 0;
-  t.rateB = t.income.b > 0 ? t.savings.b / t.income.b : 0;
+  for(const s of SECTIONS) t[s.key] = sum(m[s.key],"b");
+  t.spent   = t.fixed + t.variable;
+  t.net     = t.income - t.spent - t.savings;
+  t.hasData = SECTIONS.some(s => m[s.key].some(r => Number(r.b)));
+  t.rate    = t.income > 0 ? t.savings / t.income : 0;
   return t;
 }
 const fmt$ = (n, cents=false) => {
@@ -866,6 +852,9 @@ const fmt$ = (n, cents=false) => {
   return (neg ? "−" : "") + s;
 };
 const fmtDiff = n => (n>0?"+":n<0?"−":"") + "$" + Math.abs(n).toLocaleString("en-US",{maximumFractionDigits:0});
+// Amount inputs show cents only when there are cents: "4,901.20" but "1,850".
+const fmtAmt = n => { const v = Number(n) || 0;
+  return v.toLocaleString("en-US",{maximumFractionDigits:2, minimumFractionDigits: v % 1 ? 2 : 0}); };
 const parseAmt = str => {
   const v = parseFloat(String(str).replace(/[^0-9.\-]/g,""));
   return isNaN(v) ? null : Math.round(v*100)/100;
@@ -949,10 +938,10 @@ function renderLedger(m, animate){
           <span class="swatch" style="background:${s.color}"></span>
           <h3>${s.label}</h3>
         </div>
-        <div class="totals"><b>${fmt$(t[s.key].a)}</b> <span style="color:var(--muted)">of ${fmt$(t[s.key].b)} planned</span></div>
+        <div class="totals"><b>${fmt$(t[s.key])}</b></div>
       </div>
       <div class="colhead">
-        <span>Category</span><span>Plan</span><span>Actual</span><span>Progress</span><span>Left</span><span></span>
+        <span>Category</span><span>Amount</span><span></span><span>Share</span><span></span>
       </div>
       <div class="rows"></div>
       <button class="add-row">+ Add line</button>
@@ -985,22 +974,17 @@ function buildRow(s, r){
       <button class="grip" title="Drag to reorder (or focus and use arrow keys)" aria-label="Reorder line">⠿</button>
       <input class="name-in" value="" aria-label="Category name">
     </div>
-    <input class="amt plan" inputmode="decimal" value="" aria-label="Planned amount">
-    <input class="amt actual" inputmode="decimal" placeholder="—" value="" aria-label="Actual amount">
+    <input class="amt" inputmode="decimal" value="" aria-label="Amount">
     <div class="bar" aria-hidden="true"><div class="fill" style="background:${s.color}"></div></div>
-    <div class="diff"></div>
+    <div class="share"></div>
     <div class="acts">
-      <button class="rec ${r.rec ? "on" : ""}" title="Repeat: auto-fill Actual from Plan each new month"
-        aria-label="Toggle auto-fill each month" aria-pressed="${!!r.rec}">↻</button>
       <button class="del" aria-label="Delete line">×</button>
     </div>
   `;
   const nameIn = el.querySelector(".name-in");
-  const planIn = el.querySelector(".plan");
-  const actIn  = el.querySelector(".actual");
+  const amtIn  = el.querySelector(".amt");
   nameIn.value = r.name;
-  planIn.value = r.b ? r.b.toLocaleString("en-US") : "0";
-  actIn.value  = (r.a === null || r.a === undefined) ? "" : r.a.toLocaleString("en-US");
+  amtIn.value  = fmtAmt(r.b);
 
   const commit = () => {
     const prevName = r.name;
@@ -1009,14 +993,12 @@ function buildRow(s, r){
       tombRow(CUR, s.key, prevName);   // the old name must not come back from another device
       untombRow(CUR, s.key, r.name);   // ...but renaming *to* a buried name revives it
     }
-    r.b = parseAmt(planIn.value) ?? 0;
-    r.a = actIn.value.trim() === "" ? null : (parseAmt(actIn.value) ?? null);
+    r.b = parseAmt(amtIn.value) ?? 0;
     nameIn.value = r.name;
-    planIn.value = r.b.toLocaleString("en-US");
-    actIn.value = r.a === null ? "" : r.a.toLocaleString("en-US");
+    amtIn.value = fmtAmt(r.b);
     save(); refreshComputed();
   };
-  [nameIn, planIn, actIn].forEach(inp => {
+  [nameIn, amtIn].forEach(inp => {
     inp.addEventListener("change", commit);
     inp.addEventListener("keydown", e => { if(e.key === "Enter") inp.blur(); });
     inp.addEventListener("focus", () => inp.select());
@@ -1030,12 +1012,6 @@ function buildRow(s, r){
     el.style.transition = "opacity .25s, transform .25s";
     el.style.opacity = 0; el.style.transform = "translateX(8px)";
     setTimeout(() => { el.remove(); refreshComputed(); }, reducedMotion ? 0 : 240);
-  });
-  el.querySelector(".rec").addEventListener("click", e => {
-    r.rec = !r.rec;
-    e.target.classList.toggle("on", r.rec);
-    e.target.setAttribute("aria-pressed", String(r.rec));
-    save();
   });
   ensureBadge(el, r);
   attachDrag(el, s);
@@ -1217,11 +1193,11 @@ function buildLogRows(r){
       <span class="ld">${dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
       <span class="ln">${en.note || "entry"}</span>
       <span class="la">${fmt$(en.amt, true)}</span>
-      <button class="lx" title="Remove entry and subtract from Actual" aria-label="Remove entry">×</button>`;
+      <button class="lx" title="Remove entry and subtract from the amount" aria-label="Remove entry">×</button>`;
     line.querySelector(".lx").addEventListener("click", () => {
       const at = r.log.indexOf(en);
       if(at > -1) r.log.splice(at, 1);
-      r.a = Math.round(((r.a||0) - en.amt)*100)/100;
+      r.b = Math.round(((r.b||0) - en.amt)*100)/100;
       (DB.tombs = DB.tombs || {})[entrySig(en)] = Date.now(); // so sync can't resurrect it from another device
       save();
       line.remove();
@@ -1231,7 +1207,7 @@ function buildLogRows(r){
         wrap.remove();
       }
       if(rowEl){
-        rowEl.querySelector(".actual").value = r.a === null ? "" : r.a.toLocaleString("en-US");
+        rowEl.querySelector(".amt").value = fmtAmt(r.b);
         ensureBadge(rowEl, r);
       }
       refreshComputed();
@@ -1241,32 +1217,25 @@ function buildLogRows(r){
   return wrap;
 }
 
+// The bar and the percentage are the line's share of its own section total, so a glance
+// tells you what dominates the fixed costs, the spending, or the savings.
 function updateRowComputed(el, s, r){
   const fill = el.querySelector(".fill");
-  const diff = el.querySelector(".diff");
-  const a = r.a ?? 0;
-  const ratio = r.b > 0 ? a / r.b : (a > 0 ? 1.01 : 0);
-  requestAnimationFrame(() => { fill.style.width = Math.min(ratio,1)*100 + "%"; });
-  const over = ratio > 1.001;
-  fill.classList.toggle("over", over && !s.moreIsGood);
-  const left = r.b - a;
-  if(r.a === null && r.b === 0){ diff.textContent = ""; diff.className = "diff"; return; }
-  diff.textContent = fmtDiff(left);
-  diff.className = "diff " + (
-    left === 0 ? "" :
-    s.moreIsGood ? (left > 0 ? "" : "good")       // income/savings beyond plan = good
-                 : (left >= 0 ? "good" : "bad")   // expenses under plan = good
-  );
+  const share = el.querySelector(".share");
+  const amt = Number(r.b) || 0;
+  const total = sum(DB.months[CUR][s.key], "b");
+  const frac = total > 0 ? amt / total : 0;
+  requestAnimationFrame(() => { fill.style.width = Math.min(Math.max(frac,0),1)*100 + "%"; });
+  share.textContent = frac > 0 ? pct(frac) : "";
 }
 
 /* ================= hero / KPIs ================= */
 let prevRateHit = null;
 function renderHero(m, animate){
   const t = totals(m);
-  const showPlan = !t.hasActuals;
-  const net = showPlan ? t.netB : t.netA;
+  const net = t.net;
   const [y, mo] = CUR.split("-");
-  $("heroEyebrow").textContent = `Net cash flow — ${monthName(CUR)}` + (showPlan ? "  ·  planned" : "");
+  $("heroEyebrow").textContent = `Net cash flow — ${monthName(CUR)}`;
   const heroNum = $("heroNum");
   const word = net > 0 ? "IN SURPLUS" : net < 0 ? "OVERDRAWN" : "BALANCED";
   const wordCls = net > 0 ? "good" : net < 0 ? "bad" : "";
@@ -1280,24 +1249,24 @@ function renderHero(m, animate){
   heroNum.appendChild(badge);
   countUp(numSpan, net, v => fmt$(Math.round(v)), animate ? 950 : 0);
 
-  $("heroSub").textContent = showPlan
-    ? `The plan: ${fmt$(t.income.b)} in, ${fmt$(t.spent.b)} out, ${fmt$(t.savings.b)} set aside. Log actuals as the month unfolds.`
-    : `${fmt$(t.income.a)} received · ${fmt$(t.spent.a)} spent · ${fmt$(t.savings.a)} set aside`;
+  $("heroSub").textContent =
+    `${fmt$(t.income)} in · ${fmt$(t.spent)} out · ${fmt$(t.savings)} set aside`;
 
   const dur = animate ? 800 : 0;
-  const inc = showPlan ? t.income.b : t.income.a;
-  const spe = showPlan ? t.spent.b : t.spent.a;
-  const sav = showPlan ? t.savings.b : t.savings.a;
-  countUp($("kIncome"), inc, v => fmt$(Math.round(v)), dur);
-  countUp($("kSpent"),  spe, v => fmt$(Math.round(v)), dur);
-  countUp($("kSaved"),  sav, v => fmt$(Math.round(v)), dur);
+  countUp($("kIncome"), t.income,  v => fmt$(Math.round(v)), dur);
+  countUp($("kSpent"),  t.spent,   v => fmt$(Math.round(v)), dur);
+  countUp($("kSaved"),  t.savings, v => fmt$(Math.round(v)), dur);
 
-  const dIncome = t.income.a - t.income.b, dSpent = t.spent.b - t.spent.a, dSaved = t.savings.a - t.savings.b;
-  setDelta("kIncomeD", showPlan ? null : dIncome, "vs plan", v => v >= 0);
-  setDelta("kSpentD",  showPlan ? null : dSpent,  "under plan", v => v >= 0, true);
-  setDelta("kSavedD",  showPlan ? null : dSaved,  "vs goal", v => v >= 0);
+  // One amount column leaves no plan to measure against, so the deltas compare this month
+  // with the one before it -- the only comparison the ledger still holds.
+  const prevKey = shiftMonth(CUR, -1);
+  const prev = DB.months[prevKey] ? totals(DB.months[prevKey]) : null;
+  const vsPrev = "vs " + monthName(prevKey, true);
+  setDelta("kIncomeD", prev ? t.income  - prev.income  : null, vsPrev, v => v >= 0);
+  setDelta("kSpentD",  prev ? t.spent   - prev.spent   : null, vsPrev, v => v <= 0);
+  setDelta("kSavedD",  prev ? t.savings - prev.savings : null, vsPrev, v => v >= 0);
 
-  const rate = showPlan ? t.rateB : t.rate;
+  const rate = t.rate;
   $("kRate").textContent = pct(Math.max(rate,0));
   $("rateFill").style.width = Math.min(Math.max(rate,0)/0.4,1)*100 + "%"; // meter spans 0–40%
   const hit = rate >= 0.2;
@@ -1306,25 +1275,21 @@ function renderHero(m, animate){
   kpi.classList.toggle("goal-hit", hit);
   prevRateHit = hit;
 }
-function setDelta(id, v, suffix, goodFn, absLabel){
+function setDelta(id, v, suffix, goodFn){
   const el = $(id);
-  if(v === null){ el.textContent = "awaiting entries"; el.className = "delta"; return; }
-  if(absLabel && v >= 0){ el.textContent = fmtDiff(Math.abs(v)).replace(/^[+−]/,"") + " " + suffix; }
-  else el.textContent = fmtDiff(v) + " " + suffix;
+  if(v === null){ el.textContent = ""; el.className = "delta"; return; }
+  el.textContent = fmtDiff(v) + " " + suffix;
   el.className = "delta " + (v === 0 ? "" : goodFn(v) ? "good" : "bad");
 }
 
 /* ================= donut ================= */
 function renderDonut(m, animate=true){
   const t = totals(m);
-  const useActual = t.hasActuals;
-  const src = useActual ? "a" : "b";
-  $("mixTag").textContent = useActual ? "actual" : "plan";
-  const income = t.income[src];
+  const income = t.income;
   const parts = [
-    {label:"Fixed",    val:t.fixed[src],    color:"#5b93d8"},
-    {label:"Variable", val:t.variable[src], color:"#c96f4a"},
-    {label:"Savings",  val:t.savings[src],  color:"#c08427"},
+    {label:"Fixed",    val:t.fixed,    color:"#5b93d8"},
+    {label:"Variable", val:t.variable, color:"#c96f4a"},
+    {label:"Savings",  val:t.savings,  color:"#c08427"},
   ];
   const allocated = parts.reduce((a,p)=>a+p.val,0);
   const leftover = Math.max(income - allocated, 0);
@@ -1345,7 +1310,7 @@ function renderDonut(m, animate=true){
     txt.setAttribute("class","donut-center-lbl");
     txt.textContent = "NO ENTRIES YET";
     svg.appendChild(txt);
-    $("mixNote").textContent = "Plan a few categories and the mix appears here.";
+    $("mixNote").textContent = "Fill in a few categories and the mix appears here.";
     return;
   }
 
@@ -1381,7 +1346,7 @@ function renderDonut(m, animate=true){
   const t2 = document.createElementNS(NS,"text");
   t2.setAttribute("x",cx); t2.setAttribute("y",cy+16); t2.setAttribute("text-anchor","middle");
   t2.setAttribute("class","donut-center-lbl");
-  t2.textContent = useActual ? "ALLOCATED" : "PLANNED";
+  t2.textContent = "ALLOCATED";
   svg.appendChild(t1); svg.appendChild(t2);
 
   segs.forEach(({el, p, frac}) => {
@@ -1403,9 +1368,9 @@ function renderDonut(m, animate=true){
     li.innerHTML = `<span class="dot" style="background:${p.color}"></span>${p.label}<b>${fmt$(p.val)}</b>`;
     legend.appendChild(li);
   });
-  $("mixNote").textContent = useActual
-    ? (leftover > 0.5 ? `${fmt$(leftover)} of income not yet spent or assigned.` : "Every dollar of income is allocated.")
-    : "Showing the plan — log actuals and this becomes your real mix.";
+  $("mixNote").textContent = leftover > 0.5
+    ? `${fmt$(leftover)} of income not yet spent or assigned.`
+    : "Every dollar of income is allocated.";
 }
 
 /* ================= 12-month trend ================= */
@@ -1424,8 +1389,7 @@ function renderTrend(animate=true){
     const m = DB.months[key];
     if(!m){ data.push({key, state:"none"}); continue; }
     const t = totals(m);
-    if(t.hasActuals) data.push({key, state:"actual", net:t.netA, t});
-    else data.push({key, state:"plan", net:t.netB, t});
+    data.push({key, state: t.hasData ? "data" : "none", net:t.net, t});
   }
   const vals = data.filter(d=>d.state!=="none").map(d=>d.net);
   const maxV = Math.max(...vals, 500), minV = Math.min(...vals, 0);
@@ -1481,15 +1445,7 @@ function renderTrend(animate=true){
     rect.setAttribute("width",bw);
     rect.setAttribute("rx",3);
     rect.setAttribute("class","bar-rect");
-    const color = v >= 0 ? "#43a884" : "#e66767";
-    if(d.state === "plan"){
-      rect.setAttribute("fill","none");
-      rect.setAttribute("stroke",color);
-      rect.setAttribute("stroke-dasharray","3 3");
-      rect.setAttribute("stroke-width","1.2");
-    } else {
-      rect.setAttribute("fill",color);
-    }
+    rect.setAttribute("fill", v >= 0 ? "#43a884" : "#e66767");
     if(reducedMotion || !animate){
       rect.setAttribute("y",top); rect.setAttribute("height",hgt);
     } else {
@@ -1499,12 +1455,11 @@ function renderTrend(animate=true){
         rect.setAttribute("y",top); rect.setAttribute("height",hgt);
       }));
     }
-    const src = d.state === "actual" ? "a" : "b";
     rect.addEventListener("mousemove", e => {
-      showTip(`<div class="t-title">${monthName(d.key)}${d.state==="plan"?" · plan":""}</div>
-        <div class="t-row"><span>Income</span><b>${fmt$(d.t.income[src])}</b></div>
-        <div class="t-row"><span>Spent</span><b>${fmt$(d.t.spent[src])}</b></div>
-        <div class="t-row"><span>Saved</span><b>${fmt$(d.t.savings[src])}</b></div>
+      showTip(`<div class="t-title">${monthName(d.key)}</div>
+        <div class="t-row"><span>Income</span><b>${fmt$(d.t.income)}</b></div>
+        <div class="t-row"><span>Spent</span><b>${fmt$(d.t.spent)}</b></div>
+        <div class="t-row"><span>Saved</span><b>${fmt$(d.t.savings)}</b></div>
         <div class="t-row" style="margin-top:3px"><span>Net</span><b>${fmt$(d.net)}</b></div>`, e.clientX, e.clientY);
     });
     rect.addEventListener("mouseleave", hideTip);
@@ -1519,8 +1474,7 @@ function refreshComputed(){
   document.querySelectorAll(".ledger-section").forEach((card, si) => {
     const s = SECTIONS[si];
     const t = totals(m);
-    card.querySelector(".totals").innerHTML =
-      `<b>${fmt$(t[s.key].a)}</b> <span style="color:var(--muted)">of ${fmt$(t[s.key].b)} planned</span>`;
+    card.querySelector(".totals").innerHTML = `<b>${fmt$(t[s.key])}</b>`;
     card.querySelectorAll(".row").forEach(el => {
       const r = m[s.key].find(x => x.id === el.dataset.id);
       if(r) updateRowComputed(el, s, r);
@@ -1609,12 +1563,13 @@ function untombRow(key, sec, name){ if(DB.rowTombs) delete DB.rowTombs[rowSig(ke
 function hasLocalData(){
   return Object.values(DB.months).some(m =>
     SECTIONS.some(s => (m[s.key]||[]).some(r =>
-      (r.a !== null && r.a !== undefined) || (r.log||[]).length)));
+      Number(r.b) || (r.log||[]).length)));
 }
 function mergeData(inc){
   // Union by month + category name. New log entries (identified by their
   // timestamp, falling back to date|amt|note for old backups) are appended and
-  // added onto Actual; existing local values are never overwritten. Entries
+  // added onto the amount; an existing local amount is never overwritten -- a fresher
+  // device wins wholesale through the rev-adopt path in pullSync instead. Entries
   // deleted here (tombstoned) are never re-added.
   let added = 0;
   const tombs = DB.tombs || {};
@@ -1633,16 +1588,14 @@ function mergeData(inc){
           if(rowTombs[rowSig(key, s.key, ir.name)]) continue; // deleted here on purpose
           loc[s.key].push({...ir, id: rid()}); added++; continue;
         }
-        lr.rec = lr.rec || !!ir.rec;
         const seen = new Set((lr.log||[]).map(entrySig));
         for(const en of (ir.log||[])){
           const sg = entrySig(en);
           if(seen.has(sg) || tombs[sg]) continue;
           (lr.log = lr.log || []).push(en);
-          lr.a = Math.round(((lr.a||0) + en.amt)*100)/100;
+          lr.b = Math.round(((lr.b||0) + en.amt)*100)/100;
           added++;
         }
-        if((lr.a === null || lr.a === undefined) && typeof ir.a === "number"){ lr.a = ir.a; added++; }
       }
     }
   }
@@ -1766,7 +1719,7 @@ function applyTombs(){
         if(!(r.log||[]).length) continue;
         const keep = [];
         for(const en of r.log){
-          if(tombs[entrySig(en)]) r.a = Math.round(((r.a||0) - en.amt)*100)/100;
+          if(tombs[entrySig(en)]) r.b = Math.round(((r.b||0) - en.amt)*100)/100;
           else keep.push(en);
         }
         r.log = keep;
@@ -1885,13 +1838,13 @@ $("resetBtn").addEventListener("click", () => {
   if(!resetArmed){
     resetArmed = true;
     btn.textContent = "Click again to confirm";
-    resetTimer = setTimeout(()=>{ resetArmed = false; btn.textContent = "Clear this month's actuals"; }, 2600);
+    resetTimer = setTimeout(()=>{ resetArmed = false; btn.textContent = "Zero this month's amounts"; }, 2600);
     return;
   }
   clearTimeout(resetTimer); resetArmed = false;
-  btn.textContent = "Clear this month's actuals";
+  btn.textContent = "Zero this month's amounts";
   const m = DB.months[CUR];
-  for(const s of SECTIONS) m[s.key].forEach(r => r.a = null);
+  for(const s of SECTIONS) m[s.key].forEach(r => r.b = 0);
   save(); renderAll(false);
 });
 
@@ -1926,7 +1879,7 @@ qlInput.addEventListener("keydown", e => {
     }
   }
   if(!hit){ qlSay(`no category matches “${q}”`, false); qlShake(); return; }
-  hit.a = Math.round(((hit.a||0) + amt)*100)/100;
+  hit.b = Math.round(((hit.b||0) + amt)*100)/100;
   const now = new Date();
   const localDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   (hit.log = hit.log || []).push({d: localDate, amt, note: q, t: Date.now()});
@@ -1935,7 +1888,7 @@ qlInput.addEventListener("keydown", e => {
   qlSay(`${hit.name} ${amt >= 0 ? "+" : "−"}${fmt$(Math.abs(amt), true)}`, true);
   const rowEl = document.querySelector(`.row[data-id="${hit.id}"]`);
   if(rowEl){
-    rowEl.querySelector(".actual").value = hit.a.toLocaleString("en-US");
+    rowEl.querySelector(".amt").value = fmtAmt(hit.b);
     ensureBadge(rowEl, hit);
     const next = rowEl.nextElementSibling;
     if(next && next.classList.contains("logrows")) next.replaceWith(buildLogRows(hit));
@@ -1955,15 +1908,15 @@ function yearStats(year){
     const m = DB.months[key];
     if(!m){ st.monthsArr.push(null); continue; }
     const t = totals(m);
-    if(!t.hasActuals){ st.monthsArr.push(null); continue; }
+    if(!t.hasData){ st.monthsArr.push(null); continue; }
     st.monthsLogged++;
-    st.saved += t.savings.a; st.income += t.income.a; st.spent += t.spent.a;
-    st.monthsArr.push(t.netA);
-    if(!st.best || t.netA > st.best.net) st.best = {key, net:t.netA};
+    st.saved += t.savings; st.income += t.income; st.spent += t.spent;
+    st.monthsArr.push(t.net);
+    if(!st.best || t.net > st.best.net) st.best = {key, net:t.net};
     if(t.rate >= 0.2) st.goalMonths++;
     for(const sec of ["fixed","variable"])
-      for(const r of m[sec]) if(r.a) st.catTotals[r.name] = (st.catTotals[r.name]||0) + r.a;
-    for(const r of m.savings) if(r.a) st.saveTotals[r.name] = (st.saveTotals[r.name]||0) + r.a;
+      for(const r of m[sec]) if(r.b) st.catTotals[r.name] = (st.catTotals[r.name]||0) + r.b;
+    for(const r of m.savings) if(r.b) st.saveTotals[r.name] = (st.saveTotals[r.name]||0) + r.b;
   }
   let s = 0, started = false;
   for(let i=11;i>=0;i--){
@@ -2039,7 +1992,7 @@ function buildWrappedSlides(year){
     slides.push(() => `
       <div class="w-eyebrow w-anim">A blank page</div>
       <div class="w-med w-anim" style="animation-delay:.15s">Nothing logged yet</div>
-      <div class="w-sub w-anim" style="animation-delay:.3s">Fill the <b>Actual</b> column for a month or two
+      <div class="w-sub w-anim" style="animation-delay:.3s">Fill in a month or two
         and come back — this becomes the story of your ${year}.</div>`);
     return slides;
   }
