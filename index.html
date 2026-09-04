@@ -340,6 +340,7 @@ body.dragging-row,body.dragging-row *{cursor:grabbing!important}
 
 /* ---------- utility card / footer ---------- */
 .util-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+[hidden]{display:none !important} /* class display rules outrank the UA [hidden] rule, which kept #importChoice/#syncChoice permanently on screen */
 .btn{
   font-size:12px;letter-spacing:.05em;padding:8px 14px;border-radius:8px;
   border:1px solid var(--line2);color:var(--ink2);transition:all .25s var(--ease);
@@ -963,6 +964,7 @@ function renderLedger(m, animate){
     });
     card.querySelector(".add-row").addEventListener("click", () => {
       const nr = R("New line", 0);
+      untombRow(CUR, s.key, nr.name);
       m[s.key].push(nr); save();
       const el = buildRow(s, nr);
       rowsEl.appendChild(el);
@@ -1001,7 +1003,12 @@ function buildRow(s, r){
   actIn.value  = (r.a === null || r.a === undefined) ? "" : r.a.toLocaleString("en-US");
 
   const commit = () => {
+    const prevName = r.name;
     r.name = nameIn.value.trim() || "Untitled";
+    if(rowSig(CUR, s.key, r.name) !== rowSig(CUR, s.key, prevName)){
+      tombRow(CUR, s.key, prevName);   // the old name must not come back from another device
+      untombRow(CUR, s.key, r.name);   // ...but renaming *to* a buried name revives it
+    }
     r.b = parseAmt(planIn.value) ?? 0;
     r.a = actIn.value.trim() === "" ? null : (parseAmt(actIn.value) ?? null);
     nameIn.value = r.name;
@@ -1017,6 +1024,7 @@ function buildRow(s, r){
   el.querySelector(".del").addEventListener("click", () => {
     const m = DB.months[CUR];
     m[s.key] = m[s.key].filter(x => x.id !== r.id);
+    tombRow(CUR, s.key, r.name); // so sync can't resurrect it from another device
     expandedLogs.delete(r.id);
     save();
     el.style.transition = "opacity .25s, transform .25s";
@@ -1592,6 +1600,12 @@ function importDone(msg){
   setTimeout(() => btn.textContent = "Import backup", 2600);
 }
 const entrySig = en => en.t ?? (en.d + "|" + en.amt + "|" + (en.note||""));
+// Rows are matched across devices BY NAME within a month+section, so a name that is
+// deleted or renamed away must be tombstoned -- otherwise the next pull from a device
+// still holding the old name re-adds it as an empty duplicate row.
+const rowSig = (key, sec, name) => key + "|" + sec + "|" + name.trim().toLowerCase();
+function tombRow(key, sec, name){ (DB.rowTombs = DB.rowTombs || {})[rowSig(key, sec, name)] = Date.now(); }
+function untombRow(key, sec, name){ if(DB.rowTombs) delete DB.rowTombs[rowSig(key, sec, name)]; }
 function hasLocalData(){
   return Object.values(DB.months).some(m =>
     SECTIONS.some(s => (m[s.key]||[]).some(r =>
@@ -1604,13 +1618,21 @@ function mergeData(inc){
   // deleted here (tombstoned) are never re-added.
   let added = 0;
   const tombs = DB.tombs || {};
+  const rowTombs = DB.rowTombs || {};
   for(const [key, incM] of Object.entries(inc.months)){
-    if(!DB.months[key]){ DB.months[key] = incM; added++; continue; }
+    if(!DB.months[key]){
+      for(const s of SECTIONS)
+        if(incM[s.key]) incM[s.key] = incM[s.key].filter(r => !rowTombs[rowSig(key, s.key, r.name)]);
+      DB.months[key] = incM; added++; continue;
+    }
     const loc = DB.months[key];
     for(const s of SECTIONS){
       for(const ir of (incM[s.key]||[])){
         const lr = loc[s.key].find(x => x.name.trim().toLowerCase() === ir.name.trim().toLowerCase());
-        if(!lr){ loc[s.key].push({...ir, id: rid()}); added++; continue; }
+        if(!lr){
+          if(rowTombs[rowSig(key, s.key, ir.name)]) continue; // deleted here on purpose
+          loc[s.key].push({...ir, id: rid()}); added++; continue;
+        }
         lr.rec = lr.rec || !!ir.rec;
         const seen = new Set((lr.log||[]).map(entrySig));
         for(const en of (ir.log||[])){
@@ -1750,6 +1772,13 @@ function applyTombs(){
         r.log = keep;
       }
 }
+function applyRowTombs(){
+  const t = DB.rowTombs || {};
+  if(!Object.keys(t).length) return;
+  for(const [key, m] of Object.entries(DB.months))
+    for(const s of SECTIONS)
+      if(m[s.key]) m[s.key] = m[s.key].filter(r => !t[rowSig(key, s.key, r.name)]);
+}
 async function pullSync(thenPush = false){
   if(!syncCfg || !syncCfg.gistId || syncBusy) return;
   syncBusy = true;
@@ -1758,16 +1787,19 @@ async function pullSync(thenPush = false){
     const remote = await fetchRemote();
     if(remote){
       DB.tombs = {...(remote.tombs||{}), ...(DB.tombs||{})};
+      DB.rowTombs = {...(remote.rowTombs||{}), ...(DB.rowTombs||{})};
       if((remote.rev||0) > (DB.rev||0)){
         // other device is fresher: adopt its state, then re-add anything only we had
         const localOld = DB;
         DB = remote;
         DB.tombs = {...(remote.tombs||{}), ...(localOld.tombs||{})};
+        DB.rowTombs = {...(remote.rowTombs||{}), ...(localOld.rowTombs||{})};
         mergeData(localOld);
       } else {
         mergeData(remote); // pick up entries only the other device had
       }
       applyTombs();
+      applyRowTombs();
       DB.rev = Date.now();
       localStorage.setItem(STORE_KEY, JSON.stringify(DB));
       ensureMonth(CUR);
@@ -1791,6 +1823,8 @@ async function pushSync(){
     const tombs = DB.tombs || {}; // prune tombstones older than 90 days
     const cutoff = Date.now() - 90*864e5;
     for(const k of Object.keys(tombs)) if(tombs[k] < cutoff) delete tombs[k];
+    const rowTombs = DB.rowTombs || {};
+    for(const k of Object.keys(rowTombs)) if(rowTombs[k] < cutoff) delete rowTombs[k];
     await gh("/gists/" + syncCfg.gistId, {method: "PATCH", body: JSON.stringify({
       files: {[SYNC_FILE]: {content: JSON.stringify(DB)}},
     })});
